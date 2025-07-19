@@ -42,6 +42,10 @@ public class StudentClient implements ApplicationRunner {
             Student studentById = optional.get();
             System.out.println(studentById);
         }
+
+        //deleting a student
+        studentRepository.delete(updatedStudent);
+
     }
 
 }

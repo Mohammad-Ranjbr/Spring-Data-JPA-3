@@ -50,5 +50,43 @@ Detached Entity (id=1, name="Alissa")   →  save() →  merge() →
 → UPDATE student SET name='Alissa' WHERE id=1 →
 → Return new detached entity (updated)
 
+Deleting a Detached Object
+When delete(returnStudent) is executed, Hibernate faces three problems:
+Problem 1: Does this entity actually exist in the database?
+Hibernate needs to check whether the record actually exists.
+Hibernate first uses EntityManager.find().
+This causes a SELECT to be executed to find the record in the database.
+Problem 2: The object cannot be deleted because it is Detached!
+Hibernate can only delete Entities that are in Persistent state.
+If it tries to delete the Detached object directly, we get an Exception:
+IllegalArgumentException: Removing a detached instance
+Solution: Using merge()
+What does Hibernate do?
+First it uses merge(returnStudent).
+If an Entity with the same ID exists in the Context, it uses it.
+If not, it SELECTs again and loads it from the database.
+The returnStudent data is copied to that new Entity.
+As a result, Hibernate has a new Entity in the Persistent state.
+The final step: the actual deletion
+Now that we have an Entity in the Persistent state:
+Hibernate removes it using EntityManager.remove() .
+This executes a DELETE statement in the database.
+Important:
+The returnStudent object is not deleted.
+Instead, Hibernate:
+Creates a new copy of it,
+Merges the data,
+And deletes the new copy.
+After the deletion, returnStudent is still in the Detached state!
+
+Are there always two SELECTs?
+No. If the following conditions are met, Hibernate may just do a SELECT or even delete without a SELECT:
+Case 1: If the same entity is already in context (e.g. still in context after findById())
+In that case Hibernate uses the same instance.
+No need for merge() and new SELECT.
+Just remove() and finally a DELETE.
+Case 2: If the entity is in Persistent state (e.g. still alive in the same transaction)
+Hibernate directly does remove(), without SELECT
+
 
 
