@@ -14,20 +14,25 @@ import org.springframework.stereotype.Component;
 //When you use @SpringBootTest, Spring loads the entire application context, meaning:
 //All beans are loaded (including StudentClient)
 //If StudentClient is still active, its run() method is also executed, even before the tests
-//@Component
+@Component
 public class StudentClient implements ApplicationRunner {
 
     private final StudentRepository studentRepository;
 
-    //@Autowired
+    @Autowired
     public StudentClient(StudentRepository studentRepository){
         this.studentRepository = studentRepository;
     }
 
     @Override
     public void run(ApplicationArguments args) {
-        Student student = new Student("Mohammad Ranjbar", "99111303"); // Transient state
-        studentRepository.save(student);
+        //Persisting a student
+        Student student = new Student("Mohamad Ranjbar", "99111303"); // Transient state
+        Student returnedStudent = studentRepository.save(student);
+
+        //updating a student
+        returnedStudent.setName("Mohammad Ranjbar");
+       Student updatedStudent =  studentRepository.save(returnedStudent);
     }
 
 }

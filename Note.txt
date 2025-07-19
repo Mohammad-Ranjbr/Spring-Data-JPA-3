@@ -15,3 +15,40 @@ Detached State:
 After the transaction is committed and the EntityManager is closed, the object is no longer managed.
 The object enters the detached state.
 Always work only with the returned object after using save(). Depending on the circumstances, it may have been merged and a new object may have been returned.
+
+Objective: Update a Student in the database using the save method
+Step 1: Create and save a new entity
+Here, a new object of the Student class is created and saved using save.
+Behind the scenes, EntityManager.persist() is called.
+The object is placed in a detached state; that is, it is detached from the context but its information is stored in the database.
+Step 2: Update the entity information
+What happens when a Detached entity is saved with save()?
+When you have previously saved an entity (for example, Student) in the database and now keep it in Java memory as detached (i.e. outside Hibernates control) and want to save it again using the save() method (which uses EntityManager.merge() behind the scenes), Hibernate goes through the following steps:
+1. Checking for the existence of an entity in the Persistence Context
+Hibernate first checks:
+"Is an entity with the same ID (e.g. id = 1) already managed in memory (the Persistence Context or 1st-level cache)?"
+If there isn't one (which is usually the case):
+Hibernate sends a SELECT to the database to read the record for that ID.
+Result: Hibernate now loads a copy of Student with id = 1 from the database and puts it in persistent state.
+Hibernate then copies the data from your detached entity to the newly loaded entity.
+In other words: the state of the detached object is transferred to the persistent object.
+2. Dirty Checking
+Hibernate now checks whether the values of the persistent entity fields have changed since the initial load after copying the data.
+If there is a change (such as changing the name Alisa to Alissa):
+Hibernate detects that the entity has become "dirty", meaning it needs to be updated.
+Hibernate then issues an UPDATE
+3. Returning the new entity to the client
+After executing merge():
+Hibernate removes the persistent object from the context (i.e., detaches it).
+The new version of that entity (which now has new information such as name = "Alissa") is returned as the output of the save() method.
+
+Detached Entity (id=1, name="Alissa")   →  save() →  merge() →
+→ SELECT student WHERE id = 1 →
+→ Load persistent entity from DB →
+→ Copy state from detached → persistent →
+→ Dirty Checking detects change →
+→ UPDATE student SET name='Alissa' WHERE id=1 →
+→ Return new detached entity (updated)
+
+
+
