@@ -1,0 +1,17 @@
+Transient State:
+When an object of the Student class is created but not yet saved in the database.
+The ID of this object is null in this state.
+The object exists only in Java memory.
+When save() is called:
+First, it checks whether the object is new or has been saved before.
+Criteria for detection: Is ID == null?
+If yes → the object is new → uses EntityManager.persist().
+If no → the object exists → uses EntityManager.merge().
+What happens after persist()?
+An INSERT is performed in the database.
+The object changes state from transient to persistent.
+An ID is created by the database for the object (e.g. 1).
+Detached State:
+After the transaction is committed and the EntityManager is closed, the object is no longer managed.
+The object enters the detached state.
+Always work only with the returned object after using save(). Depending on the circumstances, it may have been merged and a new object may have been returned.
