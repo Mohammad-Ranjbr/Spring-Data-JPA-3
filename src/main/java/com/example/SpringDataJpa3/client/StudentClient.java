@@ -7,6 +7,8 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
+import java.util.Optional;
+
 //When a class like StudentClient is annotated with @Component
 //Spring automatically runs this class when the application (or test) is started because it is an ApplicationRunner.
 //The code you write inside run() is executed at the same time as the test.
@@ -30,9 +32,16 @@ public class StudentClient implements ApplicationRunner {
         Student student = new Student("Mohamad Ranjbar", "99111303"); // Transient state
         Student returnedStudent = studentRepository.save(student);
 
-        //updating a student
+        //Updating a student
         returnedStudent.setName("Mohammad Ranjbar");
        Student updatedStudent =  studentRepository.save(returnedStudent);
+
+       //Finding a student by id
+        Optional<Student> optional = studentRepository.findById(returnedStudent.getId());
+        if(optional.isPresent()){
+            Student studentById = optional.get();
+            System.out.println(studentById);
+        }
     }
 
 }
