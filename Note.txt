@@ -88,5 +88,30 @@ Just remove() and finally a DELETE.
 Case 2: If the entity is in Persistent state (e.g. still alive in the same transaction)
 Hibernate directly does remove(), without SELECT
 
+What is Spring Data Commons?
+It provides a common foundation for all Spring Data projects, whether for relational or non-relational (NoSQL) databases.
+This project defines the main and public Repository interfaces such as Repository, CrudRepository, and PagingAndSortingRepository.
 
+Spring Data JPA and Spring Data Commons Relationship
+Spring Data JPA is built on top of Spring Data Commons.
+JpaRepository, which is used in JPA projects, itself inherits from PagingAndSortingRepository, which belongs to Spring Data Commons.
+Therefore, in addition to CRUD methods, it is possible to use methods related to pagination and sorting.
+You can also use CrudRepository or PagingAndSortingRepository directly if you do not need all the features of JpaRepository.
 
+Spring Data MongoDB and Spring Data Commons Relationship
+Spring Data MongoDB is also built on Spring Data Commons, similar to JPA.
+MongoRepository in Spring Data MongoDB is similar to JpaRepository but is specific to working with MongoDB databases.
+This makes working with MongoDB and JPA very similar in terms of API and makes it easier to switch between them.
+Spring Data's overall philosophy
+Spring Data aims to provide a unified and database-independent programming model.
+This allows developers to migrate from relational databases to NoSQL and vice versa without much change in the code.
+
+Creating a custom Repository with custom methods from different interfaces (such as CrudRepository and JpaRepository)
+We want to create a Repository called MyCustomRepository that has only these 3 methods
+How do we create a Repository that has only these three methods?
+MyCustomRepository should only inherit from the base Repository (marker interface) and then define these three custom methods inside itself.
+Spring Data JPA creates an implementation for this Repository dynamically (Dynamic Proxy) at runtime that implements those methods.
+Why might we want to have only three methods? Why not use the full JpaRepository?
+You might not want all the methods to be available to developers.
+For example, you don't want to have deleteById because you use soft delete.
+You don't want to give the most complete access to specific modules or external APIs.
