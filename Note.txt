@@ -147,3 +147,7 @@ Because @BeforeAll must be static, you cannot use studentRepository (because sta
 But with PER_CLASS:
 The @BeforeAll method can be non-static, so you have access to the studentRepository field.
 This means you can prepare the database with Repository before running the tests.
+
+If the Repository method is annotated with @Query, the same query will be executed. This has the highest priority.
+If @Query is not present, Spring Data JPA checks whether a Named Query with the same name is defined (for example, in the entity class with @NamedQuery). If so, it will be executed.
+If neither @Query nor Named Query is defined, then Spring Data JPA attempts to automatically generate and execute a query based on the method name (i.e., a Derived Query).
