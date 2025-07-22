@@ -115,3 +115,35 @@ Why might we want to have only three methods? Why not use the full JpaRepository
 You might not want all the methods to be available to developers.
 For example, you don't want to have deleteById because you use soft delete.
 You don't want to give the most complete access to specific modules or external APIs.
+
+Named Queries
+If you want to define a query in the Entity itself:
+Named JPQL Query in the Student entity:
+
+@NamedQuery(
+  name = "Student.findByName",
+  query = "SELECT s FROM Student s WHERE s.name = :name"
+)
+
+Named Native SQL Query:
+
+@NamedNativeQuery(
+  name = "Student.findByNameEndingWith",
+  query = "SELECT * FROM student WHERE name LIKE %:pattern",
+  resultClass = Student.class
+)
+
+By default, JUnit 5 creates a new object of the test class for each test method. That is, if your test class has 3 methods, 3 instances of the class will be created.
+@TestInstance(TestInstance.Lifecycle.PER_METHOD)
+
+If you want only one object of the test class to be created to execute all test methods, you should write this annotation:
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+The test class is instantiated only once.
+You can use non-static fields in the @BeforeAll and @AfterAll methods.
+
+Suppose you want to use a Repository (say StudentRepository) initialized with @Autowired.
+In the default case (PER_METHOD):
+Because @BeforeAll must be static, you cannot use studentRepository (because static methods do not have access to non-static fields).
+But with PER_CLASS:
+The @BeforeAll method can be non-static, so you have access to the studentRepository field.
+This means you can prepare the database with Repository before running the tests.

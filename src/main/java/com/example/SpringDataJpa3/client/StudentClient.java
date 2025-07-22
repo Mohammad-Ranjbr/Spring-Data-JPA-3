@@ -16,12 +16,12 @@ import java.util.Optional;
 //When you use @SpringBootTest, Spring loads the entire application context, meaning:
 //All beans are loaded (including StudentClient)
 //If StudentClient is still active, its run() method is also executed, even before the tests
-@Component
+//@Component
 public class StudentClient implements ApplicationRunner {
 
     private final StudentRepository studentRepository;
 
-    @Autowired
+    //@Autowired
     public StudentClient(StudentRepository studentRepository){
         this.studentRepository = studentRepository;
     }

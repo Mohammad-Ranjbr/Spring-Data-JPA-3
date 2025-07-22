@@ -9,6 +9,7 @@ import lombok.*;
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
+@NamedQuery(name = "Student.findByName", query = "select s from Student s where s.name = :name")
 public class Student {
 
     @Id
