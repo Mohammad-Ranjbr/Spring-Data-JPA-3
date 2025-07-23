@@ -5,6 +5,10 @@ import com.example.SpringDataJpa3.repository.UserRepository;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import java.time.LocalDate;
 import java.time.Month;
@@ -222,6 +226,46 @@ public class UserRepositoryTests {
         List<User> users = userRepository.findFirst2ByIsActiveTrueAndUsernameEndingWith("m");
         Assertions.assertEquals(1, users.size());
         Assertions.assertEquals("tom", users.get(0).getUsername());
+    }
+
+    @Test
+    public void testFindAllPage1Of3Users() {
+        Pageable pageable = PageRequest.of(0, 3);
+        Page<User> page1Of3Users = userRepository.findAll(pageable);
+        List<User> users = page1Of3Users.getContent();
+        Assertions.assertEquals(3, users.size());
+        Assertions.assertEquals("nicole", users.get(2).getUsername());
+    }
+
+    @Test
+    public void testFindAllPage2Of3Users() {
+        Pageable pageable = PageRequest.of(1, 3);
+        Page<User> page2Of3Users = userRepository.findAll(pageable);
+        List<User> users = page2Of3Users.getContent();
+        Assertions.assertEquals(3, users.size());
+        Assertions.assertEquals("tom", users.get(2).getUsername());
+    }
+
+    @Test
+    public void testFindAllPage2Of3UsersSortByLevel() {
+        Sort sortByLevel = Sort.by("level");
+        Pageable pageable = PageRequest.of(1, 3, sortByLevel);
+        Page<User> page2Of3Users = userRepository.findAll(pageable);
+        List<User> users = page2Of3Users.getContent();
+        Assertions.assertEquals(3, users.size());
+        Assertions.assertTrue(List.of(2L, 5L, 6L).containsAll(List.of(users.get(0).getId(), users.get(1).getId(), users.get(2).getId())));
+    }
+
+    @Test
+    public void testFindAllPage2Of3UsersSortByLevelAndId() {
+        Sort sortByLevelAndId = Sort.by("level").and(Sort.by("id"));
+        Pageable pageable = PageRequest.of(1, 3, sortByLevelAndId);
+        Page<User> page2Of3Users = userRepository.findAll(pageable);
+        List<User> users = page2Of3Users.getContent();
+        Assertions.assertEquals(3, users.size());
+        Assertions.assertEquals(2L, users.get(0).getId());
+        Assertions.assertEquals(5L, users.get(1).getId());
+        Assertions.assertEquals(6L, users.get(2).getId());
     }
 
     @BeforeAll
