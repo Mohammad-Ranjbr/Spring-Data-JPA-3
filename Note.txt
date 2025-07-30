@@ -151,3 +151,52 @@ This means you can prepare the database with Repository before running the tests
 If the Repository method is annotated with @Query, the same query will be executed. This has the highest priority.
 If @Query is not present, Spring Data JPA checks whether a Named Query with the same name is defined (for example, in the entity class with @NamedQuery). If so, it will be executed.
 If neither @Query nor Named Query is defined, then Spring Data JPA attempts to automatically generate and execute a query based on the method name (i.e., a Derived Query).
+
+Query by Example (QBE) is a way in which:
+Instead of writing a manual query (like findByLastNameAndLevel)
+You create an object of the class you want and pass it to JPA
+JPA will search the database for records that are similar to that object
+This object is called: "Probe" (like an example that we need to search for)
+
+Step 1: Create a Probe
+Suppose you want to find all users who:
+lastName = "Smith"
+level = 2
+
+User probe = new User();
+probe.setLastName("Smith");
+probe.setLevel(2);
+
+Step 2: Create an Example
+Example<User> example = Example.of(probe);
+
+Step 3: Search with Repository
+List<User> result = userRepository.findAll(example);
+
+This line says:
+Go get all users with lastName = "Smith" and level = 2.
+
+The problem occurs when you use primitive fields
+For example, if you just write:
+User probe = new User();
+probe.setLastName("Smith");
+You think level will be ignored, but no! You are wrong.
+Why?
+Because level is an int and the default value of int is 0.
+It is actually telling JPA:
+Look for lastName = "Smith" and level = 0!
+And since there is no user with level = 0 in our database, the result is: empty list.
+What is the solution? Using ExampleMatcher
+We are telling JPA:
+Please ignore level, even though it has a default value!
+
+ExampleMatcher matcher = ExampleMatcher.matching()
+.withIgnorePaths("level"); // Ignore level field
+Example<User> example = Example.of(probe, matcher);
+List<User> result = userRepository.findAll(example);
+
+Ignore a specific field .withIgnorePaths("level")
+Ignore case .withIgnoreCase()
+Match first, middle, or last name? .withMatcher("firstName", startsWith()), contains(), endsWith()
+
+
