@@ -199,4 +199,41 @@ Ignore a specific field .withIgnorePaths("level")
 Ignore case .withIgnoreCase()
 Match first, middle, or last name? .withMatcher("firstName", startsWith()), contains(), endsWith()
 
+A transaction is a set of operations that are executed as an atomic unit. Either all of those operations are successful, or none of them are successful and all are rolled back to the previous state.
+Suppose you have a ticket booking application. When a user makes a ticket reservation, a seat must first be assigned to him and then the payment must be made. If the payment fails, the seat must not be reserved for him. This is possible using a "transaction".
+Commit:
+This means that all the operations within the transaction have been completed successfully and now the database must save those changes and make them visible to other users.
+Rollback:
+This means that an error has occurred and the changes made must be rolled back to the previous state; no trace of that operation remains in the database.
 
+Basic properties of a transaction (ACID)
+1. Atomicity
+All operations in a transaction must be completed completely or none of them.
+Example:
+Suppose you are transferring money from your bank account to someone else's account.
+The two main operations are:
+Money decreases in your account
+Money increases in the other party's account
+If only one of them happens (for example, money decreases in your account but does not reach the other party's account), it is a disaster!
+Atomicity guarantees that either both happen, or neither happens.
+
+2. Consistency
+The database must remain in a valid state before and after the transaction.
+
+Example:
+Suppose there is a rule in the database that the account balance should never become negative.
+If this rule is violated during the transaction, the entire transaction must be canceled.
+Consistency means that after the transaction is executed, the data is still consistent with the rules of the system.
+
+3. Isolation
+Transactions should not affect each other or have incomplete results.
+Example:
+Suppose two people are simultaneously reserving a specific seat in a ticketing system.
+If the transactions are not isolated, both people could end up buying the same seat!
+Isolation prevents this from happening. Each transaction is executed as if in its own space.
+
+4. Durability
+Once a transaction is successfully committed, the data should persist forever, even if the system crashes or loses power.
+Example:
+If a user purchases a ticket and the system shuts down after a few moments, the ticket should still be recorded in the database.
+Durability means that the database retains that information as soon as the transaction is committed.
