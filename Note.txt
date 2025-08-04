@@ -237,3 +237,69 @@ Once a transaction is successfully committed, the data should persist forever, e
 Example:
 If a user purchases a ticket and the system shuts down after a few moments, the ticket should still be recorded in the database.
 Durability means that the database retains that information as soon as the transaction is committed.
+
+One of the first things that comes to mind when talking about getting a database connection is that it is a resource-intensive process.
+If your application does not use a connection pool, every time a database operation is performed, that operation will be relatively slow and will not be suitable for your application in terms of performance.
+Here’s how it works: when a client sends a request to perform an operation on the database (e.g., register a ticket), if your Spring application is not configured to use a connection pool, behind the scenes, the application opens a new connection to the database; this is relatively time-consuming.
+And when the database operation is finished processing, the server has to close this connection before the response can be returned to the client; this is also slow.
+And only after the connection is closed, the response is returned to the client.
+So if your application does not use a connection pool, every database operation will be very slow; Because opening and closing a connection are two very time-consuming and expensive processes.
+
+In production environments, you absolutely do not want to have an application that does not use a connection pool.
+And when your application is properly configured to use a connection pool, when the server starts, it automatically pre-empts several connections to the database.
+As a result, you have a pool of connections ready to be used by clients for database operations.
+Now, if we have the same request as before – say, saving a ticket – this time, instead of opening a new connection, the server just borrows one of the free connections in the pool.
+A connection that is not currently busy responding to another request.
+Then, it hands your request over to that same connection to perform the ticket registration operation or any other database operation.
+So this time, with the connection pool, the ticket registration operation will not be as slow as before; Because we didn’t need to open a new connection.
+We just had to borrow an existing one.
+So, this time the operation is performed significantly faster.
+And when that connection is done with the database operation (in our example, registering a ticket), the server doesn’t close that connection.
+Instead, it simply returns it to the connection pool to be used to respond to other client requests.
+That is, the connection that was borrowed from the pool is not closed, but released and returned to the pool and remains open.
+This will make your database operations even faster, because as we said, closing a connection is also a slow process.
+
+Spring Boot uses a connection pooling library called HikariCP by default.
+And now when you mark a method in a service with the @Transactional annotation, if you use Resource-local (i.e. you only have one datasource), Hibernate immediately acquires a database connection at the very beginning of the transaction, i.e. immediately after the transactional method is called.
+This connection is for a JDBC transaction that is acquired at the beginning of the method execution – even before any actual operations are performed on the database.
+This is not good, because acquiring a connection and not using it can hurt the performance of your application.
+You should acquire a connection only when you are actually going to perform a database operation, not at the beginning of the method.
+For example, let's say we have a method in a service that is annotated with @Transactional.
+When this method is called from the client, a transaction is immediately started with the EntityManager.
+And what we are going to examine in this session is that at this very moment, even before doing anything, Hibernate gets a connection to the database.
+Suppose in line 17 we do something that takes time, but does not require a database connection.
+For example, we simulate a task that takes 40 seconds using Thread.sleep(40000).
+If you look at the console log at this moment, you will see that even in the case where line 17 does not require any database, HikariCP has an active connection.
+That is, out of 10 connections in the connection pool, one of them is active, while we do not need it - which is not good from a performance point of view.
+You should get the connection exactly when you really need it - for example, in line 19 when we find a ticket from the database - and not earlier.
+Here you may ask:
+Why does this happen?
+Why is the database connection taken right at the beginning of the method and why is this process not delayed until line 19 when the database operation is performed?
+The answer is that in resource-local JPA transactions, the database connection is taken immediately.
+Because Hibernate needs to check the auto-commit status of the underlying JDBC connection; and if it is enabled, disable it.
+That is why the connection must be taken at the beginning of the method; because without this, the transaction cannot be managed as an atomic unit.
+
+That is, each database operation is stored immediately, independently, and permanently; each operation has its own transaction.
+For example, if a ticket reservation requires two operations—first assigning a seat, second receiving the payment—in auto-commit mode, each of these operations has a separate transaction.
+And this is not what we want at all.
+We want either both to happen, or neither (atomicity).
+And this happens if auto-commit is disabled.
+Hibernate does exactly the same thing: it disables auto-commit at the beginning of the method, and to do this, it has to acquire a connection.
+So, the solution to this problem is to postpone the process of acquiring the connection until the first database operation is reached (lazy connection acquisition).
+And this can be done very easily, just set the following two properties in the application.properties file:
+
+spring.datasource.hikari.auto-commit=false
+hibernate.connection.provider_disables_autocommit=true
+
+These two properties make Hibernate disable auto-commit by itself, instead of connecting at the beginning of the method to disable auto-commit.
+As a result, Hibernate no longer needs to connect at the beginning of the method.
+Rather, this connection is only taken when the actual operation on the database begins.
+The first property is related to Hikari, and the second is related to Hibernate.
+Be sure to enable both, because just one is not enough.
+To see the HikariCP logs, you can also set the corresponding log level to trace:
+
+logging.level.com.zaxxer.hikari=TRACE
+
+With this, the connection pool status will be logged to the console every 30 seconds.
+
+
