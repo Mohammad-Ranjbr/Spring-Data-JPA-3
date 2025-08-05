@@ -11,13 +11,13 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.time.Month;
 
-@Component
+//@Component
 public class DoSomeTimeConsumingTaskClient implements ApplicationRunner {
 
-    @Autowired
+    //@Autowired
     private TicketService ticketService;
 
-    @Autowired
+    //@Autowired
     private TicketRepository ticketRepository;
 
     @Override

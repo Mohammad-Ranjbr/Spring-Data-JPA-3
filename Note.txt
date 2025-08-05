@@ -302,4 +302,61 @@ logging.level.com.zaxxer.hikari=TRACE
 
 With this, the connection pool status will be logged to the console every 30 seconds.
 
+Let's say we have an entity called Guide that has an ID, a staff ID, a name, and a salary.
+This entity is mapped to the guide table, which currently contains two guides.
+We also have a GuideRepository that we use to store this entity. This repository inherits from JpaRepository.
 
+Now the question is:
+What will be the result of executing this method written here?
+In this service method (on line 18), we first try to find the guide with the ID 1. Then, in the next line, we increase his salary from 1000 to 2500.
+
+This method is marked with the @Transactional annotation, which means it runs in a transaction context;
+In such a way that when the method starts executing, a transaction is started and at the end of the method, the transaction is committed or rolled back in case of an error.
+
+In your opinion, can this method change the permissions of the user with ID 1 to 2500?
+The answer is yes; the permissions of this user will be changed to 2500.
+Why? Because by default, Spring transactions work in read/write mode, and in this mode, dirty checking is automatically performed when the transaction is committed.
+In this process, Hibernate checks whether any data has changed, and if so, issues an SQL update statement that updates the permissions in the database to 2500.
+
+The first thing we need to know is that the default value of the readOnly attribute in the @Transactional annotation is false, which means that the transaction is executed in read/write mode.
+In this case, automatic dirty checking is performed on commit.
+
+Like this:
+When the select statement is executed on line 18 to get the Guide with ID 1, in addition to receiving a Guide object, a snapshot or loaded state of the initial state of that object is also maintained.
+This snapshot is used by Hibernate during dirty checking to find out if anything has changed in the object.
+During a read/write transaction, the loaded object is managed in the persistence context by the EntityManager.
+That is why dirty checking can be performed.
+If the state of the object was not managed, dirty checking would not be performed (which happens in read-only transactions).
+
+When we get to line 19 and change the permissions to 2500, this change is recorded in memory (Java memory).
+When committing the transaction, Hibernate performs dirty checking:
+It compares the current state of the object with the original snapshot.
+If it sees a difference (here the permissions have changed from 1000 to 2500), it issues an update command to bring the database into line with the new state.
+This will change the permissions of the guide with ID 1 in the guide table to 2500.
+
+These snapshots consume memory.
+Dirty checking can be time-consuming, as Hibernate has to check all the objects in the persistence context.
+So if you put unnecessary objects into the persistence context, it will cause a performance degradation of the application.
+So always try to load only the data that you intend to change in read/write transactions.
+
+Now about read-only transactions
+In the second scenario, we do the same thing (load the directory with ID 1 and change the permissions to 2500), but this time our method has @Transactional(readOnly = true).
+What happens in this case?
+Answer:
+This time the permissions are not changed to 2500.
+Why?
+Because in a read-only transaction,
+dirty checking is not done
+The initial snapshot of the objects is not kept
+Flush (applying changes) is also not done at the end of the transaction
+In fact, in read-only:
+When data is read from the database, it is registered as read-only in the persistence context and Hibernate does not manage it.
+Since Hibernate does not manage it, there will be no dirty checking operation either.
+So at the time of commit, no update command is issued and the permissions value in the database remains the same as 1000.
+From Spring's perspective, this is a performance optimization; because when you are fetching data for reading only and not intending to change it, there is no need for dirty checking or snapshots.
+This saves memory and time.
+
+In read/write transactions → dirty checking is enabled, snapshot is kept, changes are applied to commit.
+In read-only transactions → dirty checking is disabled, snapshot is not kept, flush is not performed.
+So if you are sure that you only want to read the data and not change it, be sure to use read-only to get better performance.
+If you want, I can explain this text to you in a simpler or more concise way — tell me how I can help you.
