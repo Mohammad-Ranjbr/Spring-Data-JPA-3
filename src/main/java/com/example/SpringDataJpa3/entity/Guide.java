@@ -20,6 +20,9 @@ public class Guide {
     private String name;
     private Integer salary;
 
+    @Version
+    private Integer version;
+
     public Guide(String staffId, String name, Integer salary) {
         this.staffId = staffId;
         this.name = name;

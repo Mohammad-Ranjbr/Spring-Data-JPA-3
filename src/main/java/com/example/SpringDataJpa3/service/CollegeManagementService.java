@@ -37,4 +37,14 @@ public class CollegeManagementService {
         guide.setSalary(2500);
     }
 
+    @Transactional(readOnly = true)
+    public Guide findGuideById(Long id) {
+        return guideRepository.findById(id).get();
+    }
+
+    @Transactional
+    public void updateGuide(Guide guide) {
+        guideRepository.save(guide);
+    }
+
 }
