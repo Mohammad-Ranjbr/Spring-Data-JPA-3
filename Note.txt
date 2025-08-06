@@ -360,3 +360,163 @@ In read/write transactions → dirty checking is enabled, snapshot is kept, chan
 In read-only transactions → dirty checking is disabled, snapshot is not kept, flush is not performed.
 So if you are sure that you only want to read the data and not change it, be sure to use read-only to get better performance.
 If you want, I can explain this text to you in a simpler or more concise way — tell me how I can help you.
+
+We are talking about Transaction Propagation. What happens when a method marked with @Transactional calls another transactional method.
+For example:
+The foo() method in the Service1 class calls the bar() method in the Service2 class.
+Both methods are transactional (i.e. they are marked with @Transactional).
+In this case, we want to see:
+Will bar() run in its own transaction or in the same transaction that foo() created?
+Will we have only one transaction or two separate transactions?
+
+We have a service called ItemService whose job is to save the Item entity.
+In this class, we have a method called saveItem() that is marked with @Transactional.
+That is: when this method is executed, a transaction is started.
+When this method is called:
+A new transaction is started.
+First, the Item entity is saved.
+Then, the log() method of the LogService class is called.
+In the LogService class, we also have a method called log(), which is also annotated with @Transactional.
+In this method:
+A Log object is created,
+and saved to the database.
+When saveItem() is called, and from within it, another transactional method (log()) is called, what exactly happens to the transaction?
+Does LogService.log() run in its own transaction?
+Or in the same transaction that ItemService.saveItem() created?
+And this is where the concept of Propagation comes into play!
+In the Spring documentation, propagation is a property of the @Transactional annotation, and its default value is:
+Propagation.REQUIRED
+
+What does that mean?
+If we don't specify a propagation value, by default:
+The second method (such as log()) runs in the same transaction that the first method (such as saveItem()) created.
+So in this example, both Item and Log run in a common transaction.
+Suppose we have the following code in the ItemService class:
+@Transactional
+public void saveItem() {
+itemRepository.save(item);
+logService.log();
+}
+
+And in LogService:
+@Transactional
+public void log() {
+logRepository.save(log);
+throw new RuntimeException("Something went wrong!");
+}
+
+What happens to the entire transaction when log() throws an error (RuntimeException)? Does the saved item get rolled back?
+Since both the saveItem() and log() methods are marked with the default value @Transactional(propagation = REQUIRED), they are executed in the same transaction.
+So if something goes wrong in the log() method and an error is thrown, the entire transaction is rolled back; that is, the data stored in the itemRepository is also rolled back and not saved.
+This default behavior is usually what we expect: either everything is saved successfully, or nothing is saved.
+This prevents inconsistencies.
+
+When we use Propagation.REQUIRES_NEW, a new, independent transaction is started, and if there is currently an active transaction, that transaction is temporarily suspended until the new transaction is executed.
+
+@Transactional
+public void saveItem() {
+itemRepository.save(item);
+logService.log();
+}
+
+@Transactional(propagation = Propagation.REQUIRES_NEW)
+public void log() {
+logRepository.save(log);
+throw new RuntimeException("Something went wrong in log!");
+}
+
+The log() method runs in a completely separate transaction.
+When an error is thrown in log(), only the transaction for that method is rolled back.
+The saveItem() transaction is not affected and is committed.
+That is, the item is saved but the log is not saved.
+If the exception is passed from log() to saveItem() and saveItem() also crashes because of that error, then the saveItem() transaction will also be rolled back!
+
+To prevent this, we need to catch the exception:
+
+@Transactional
+public void saveItem() {
+itemRepository.save(item);
+try {
+logService.log();
+} catch (Exception e) {
+// Log the exception, but don’t re-throw
+}
+}
+
+When using Propagation.NESTED:
+
+If there is currently an active transaction, the method will be executed as a nested transaction.
+
+If there is no active transaction, it will behave exactly like REQUIRED and a new transaction will be started.
+
+What does nested transaction mean?
+A savepoint is created in the current transaction.
+If a NESTED method fails, it will only rollback up to that savepoint, not the entire parent transaction.
+
+@Transactional
+public void saveItem() {
+itemRepository.save(item);
+logService.log();
+}
+
+@Transactional(propagation = Propagation.NESTED)
+public void log() {
+logRepository.save(log);
+throw new RuntimeException("Logging failed!");
+}
+
+If the log() method fails (i.e. throws an Exception), only the operations inside that method will be rolled back.
+The rest of the transaction in saveItem() (i.e. saving the item) will continue and be committed.
+But only if we catch the exception in saveItem() and don't let it escalate.
+For NESTED to work:
+Your database and transaction implementation (i.e. DataSource) must support Savepoints.
+Otherwise, NESTED may behave like REQUIRED or even encounter an error.
+
+New transaction?
+REQUIRES_NEW -> Yes, completely separate
+NESTED -> No, child of parent transaction
+Will parent transaction abort?
+REQUIRES_NEW -> Yes
+NESTED -> No
+
+A method marked with Propagation.NOT_SUPPORTED should not be executed within a transaction.
+If there is an active transaction when the method is executed, it is temporarily suspended.
+When you want a piece of code to run without a transaction. For example:
+Code that is just for reading data and you don't want the transaction to affect it.
+An operation that is not transaction-dependent and should not be rolled back.
+
+@Transactional
+public void saveItem() {
+itemRepository.save(item);
+noTxService.printStats(); // Not transactional
+}
+
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
+public void printStats() {
+// This method runs outside a transaction
+System.out.println("Reading stats...");
+}
+Here, printStats() runs without a transaction even if saveItem() is in a transaction.
+
+A method marked with Propagation.NEVER must not be executed in a transaction.
+If there is an active transaction when it is executed, an exception is thrown.
+To prevent the incorrect execution of a method inside a transaction.
+For example, when you know that executing the method inside a transaction may cause data inconsistencies or record locking.
+
+@Transactional(propagation = Propagation.NEVER)
+public void sendEmail() {
+// If executed in a transaction, an error is thrown
+emailService.send(...);
+}
+
+A method marked with Propagation.MANDATORY must be executed inside an active transaction.
+If there is no transaction when it is executed, an exception is thrown.
+To ensure that a piece of code is only executed within the context of the current transaction.
+For example, to make changes that should not be made independently.
+
+@Transactional(propagation = Propagation.MANDATORY)
+public void updateStock() {
+// If called without a transaction, an error will be thrown
+stockRepository.update(...);
+}
+
