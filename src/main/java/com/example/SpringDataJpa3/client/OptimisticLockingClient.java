@@ -10,13 +10,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @Order(2) //The order in which they are executed is determined by Spring Boot at application startup time.
-@Component
+//@Component
 public class OptimisticLockingClient implements ApplicationRunner {
 
     private final User1Client user1Client;
     private final User2Client user2Client;
 
-    @Autowired
+    //@Autowired
     public OptimisticLockingClient(User1Client user1Client, User2Client user2Client) {
         this.user1Client = user1Client;
         this.user2Client = user2Client;
@@ -37,10 +37,10 @@ public class OptimisticLockingClient implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
-        ExecutorService executor = Executors.newFixedThreadPool(2);
-        executor.execute(user1Client);
-        executor.execute(user2Client);
-        executor.shutdown();
+//        ExecutorService executor = Executors.newFixedThreadPool(2);
+//        executor.execute(user1Client);
+//        executor.execute(user2Client);
+//        executor.shutdown();
     }
 
 }

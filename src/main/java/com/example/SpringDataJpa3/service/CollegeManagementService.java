@@ -47,4 +47,19 @@ public class CollegeManagementService {
         guideRepository.save(guide);
     }
 
+    @Transactional
+    public void prepareNameAndSalaryReportOfAllGuides() {
+        List<Object[]> resultList = guideRepository.getNameAndSalaryOfAll();
+        for (Object[] result : resultList) {
+            System.out.println("Name: " + result[0] + " Salary: " + result[1]);
+        }
+        System.out.println("The total salary of all the guides is " + guideRepository.calculateSumOfAllSalaries());
+    }
+
+    @Transactional
+    public void raiseSalaryOfGuide(Long id, Integer newSalary) {
+        Guide guide = guideRepository.findById(id).get();
+        guide.setSalary(newSalary);
+    }
+
 }

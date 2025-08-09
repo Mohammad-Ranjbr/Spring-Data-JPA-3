@@ -520,3 +520,36 @@ public void updateStock() {
 stockRepository.update(...);
 }
 
+When do we use pessimistic locking?
+When multiple queries are executed on the same data in the same transaction.
+For example, suppose we have a guide table and we want to generate a report from it:
+Print a list of names and rights of all guides.
+Also print the total of the rights.
+To do this, we write two simple JPQL queries:
+First query: Get the names and rights of all guides.
+Second query: Get the total rights with the SUM function.
+In the service:
+First, we execute the first query and print the data.
+Then, we execute the second query and print the total.
+No-lock problem
+There is a time gap between the execution of the first and second queries.
+If during this time another user (e.g. User Y) changes the rights of one of the guides, the total returned by the second query will be different from the total of the initial list and the report will be incorrect.
+Solution: Pessimistic Lock
+To avoid this problem, we put a pessimistic read lock on the first query.
+This lock causes:
+Other users to be able to read the data but not to change it until the current transaction is complete.
+When the transaction is committed, the lock is released.
+This allows User X to get the report with the fixed data and User Y's changes are not applied until the end of the transaction.
+Simulating two concurrent users
+A thread for User X to get the report.
+A thread for User Y to try to change the rights of a guide.
+When the read lock is active, User Y's attempt to change will cause a PessimisticLockException.
+Difference between Read Lock and Write Lock
+Pessimistic Read Lock: Prevents others from changing the data, but allows reading the data.
+Pessimistic Write Lock: Prevents others from reading and changing the data until we make our own changes.
+Important Note: Although this method prevents inconsistencies, it can reduce system performance and scalability due to the use of real database locks, so its use is not very common.
+The database blocks request Y.
+Update Y will not be executed until transaction X has completed (committed or rolled back).
+If this wait takes longer than the configured lock timeout, an exception such as PessimisticLockException or SQL timeout exception is thrown.
+
+
