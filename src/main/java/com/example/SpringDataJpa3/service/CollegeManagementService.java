@@ -4,6 +4,7 @@ import com.example.SpringDataJpa3.entity.Guide;
 import com.example.SpringDataJpa3.repository.GuideRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -47,7 +48,7 @@ public class CollegeManagementService {
         guideRepository.save(guide);
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
     public void prepareNameAndSalaryReportOfAllGuides() {
         List<Object[]> resultList = guideRepository.getNameAndSalaryOfAll();
         for (Object[] result : resultList) {

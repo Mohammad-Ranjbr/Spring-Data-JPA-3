@@ -552,4 +552,45 @@ The database blocks request Y.
 Update Y will not be executed until transaction X has completed (committed or rolled back).
 If this wait takes longer than the configured lock timeout, an exception such as PessimisticLockException or SQL timeout exception is thrown.
 
+What is the transaction isolation level?
+The isolation level determines how much and when data modified by a transaction is visible to other transactions.
+Isolation is the extent to which transactions can operate independently and separately from each other.
+But should transactions always be completely isolated from each other?
+Ideally, yes. But in practice, creating complete isolation severely reduces the performance and scalability of the system.
+The higher the isolation, the more secure and accurate the data will be, but the slower the system will run.
+Suppose we have a table called guide with three rows (three guides).
+User 1 opens transaction 1 and gets a list of the names and rights of the guides.
+Before user 1 commits his transaction, user 2 opens transaction 2 and changes the rights of guide number 3 to 4000 and adds a new guide.
+Now, what will happen if user 1 runs the same query again?
+Do user 2's changes in transaction 2 affect user 1's results?
+The answer depends on the isolation level set in the database.
+Final example question:
+User X creates a report: first reads the data (line 20), then prints the report in a loop, and finally calculates the total rights (line 25).
+In between these two steps, user Y changes the rights of guide number 3 to 4000.
+Question: What is the total rights printed by user X?
+Answer:
+If we use MySQL with default isolation (Repeatable Read), the report for user X will be 8000 because the data read in the transaction remains constant until the end of the transaction.
+If we use H2 with default isolation (Read Committed), the report for user X will print 9000 because the changes of user Y are visible after the commit.
+How to solve this problem?
+We can set the transaction isolation in Java code using the annotation @Transactional(isolation = Isolation.REPEATABLE_READ).
+This will make the current transaction behave as Repeatable Read and the data will remain constant even if the default isolation of the database is Read Committed.
 
+Common Problems with Low Isolation
+When there is insufficient isolation, several problems can occur:
+
+Dirty Read
+Transaction A reads data that transaction B has changed but has not yet committed (it may be rolled back).
+In this case, transaction A reads data that may never go to the database at all.
+
+Non-repeatable Read
+Transaction A reads data, then transaction B changes that data and commits, then transaction A reads the same data again and the value is different.
+That is, the data has changed between the two reads of a transaction.
+
+Phantom Read
+Transaction A reads some rows with a specific condition, then transaction B adds new rows that meet the condition and commits.
+Now if transaction A reruns the query, it will see new rows (that were not there before).
+
+The importance of choosing the right isolation level
+If your work is sensitive to simultaneous changes and data errors (such as a banking or accounting system), it is better to choose a higher isolation level (Serializable or Repeatable Read).
+If your system requires speed and fast response and some small and transient changes are acceptable, you can use lower levels.
+There is always a balance between data accuracy and system efficiency.

@@ -27,7 +27,7 @@ public class PopulateDbClient implements ApplicationRunner {
     public void run(ApplicationArguments args) throws Exception {
         List<Guide> guides = new ArrayList<>();
         guides.add(new Guide("2000MO", "Mike Lawson", 1000));
-        guides.add(new Guide("2001MO", "Ian Lamb", 2500));
+        guides.add(new Guide("2001MO", "Ian Lamb", 4000));
         guides.add(new Guide("2002MO", "David Crow", 3000));
         guideRepository.saveAll(guides);
     }
