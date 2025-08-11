@@ -10,13 +10,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @Order(2)
-@Component
+//@Component
 public class PessimisticLockingClient implements ApplicationRunner {
 
     private final UserXClient userXClient;
     private final UserYClient userYClient;
 
-    @Autowired
+    //@Autowired
     public PessimisticLockingClient(UserXClient userXClient, UserYClient userYClient) {
         this.userXClient = userXClient;
         this.userYClient = userYClient;

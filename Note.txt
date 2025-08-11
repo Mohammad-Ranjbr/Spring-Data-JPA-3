@@ -594,3 +594,83 @@ The importance of choosing the right isolation level
 If your work is sensitive to simultaneous changes and data errors (such as a banking or accounting system), it is better to choose a higher isolation level (Serializable or Repeatable Read).
 If your system requires speed and fast response and some small and transient changes are acceptable, you can use lower levels.
 There is always a balance between data accuracy and system efficiency.
+
+The users table currently has five records:
+3 level 1 users
+2 level 2 users
+The question is: How can we delete all level 1 users?
+If we want to delete level 1 users, we can add a method like this:
+@Transactional
+long deleteByLevel(in
+This method:
+Takes the value of level.
+Returns the number of records that were deleted.
+Spring Data JPA automatically builds the appropriate query.t level);
+An important point about transactions
+Because this method modifies data (deletes), it must be executed inside a transaction.
+That is why we add @Transactional.
+By default, Derived Query methods (such as deleteByLevel) are not executed in a transaction.
+If you do not add it, Spring will throw an error:
+Transaction is required for this operation.
+Suppose we have a method in UserService:
+public void deleteUsersByLevel() {
+long count = userRepository.deleteByLevel(1);
+System.out.println(count);
+}
+When this method is executed:
+Three level 1 users are deleted.
+The value 3 is printed.
+But three DELETE statements are executed (not one statement).
+That is, the records are deleted one by one.
+Problem with the first method
+If the number of users is large, deleting one by one becomes slow.
+Sometimes we want to delete all of them with one DELETE statement.
+
+Second method: Bulk deletion
+For this, we use @Query + @Modifying:
+@Transactional
+@Modifying
+@Query("DELETE FROM User u WHERE u.level = :level")
+int deleteInBulkByLevel(@Param("level") int level);
+Features:
+Only one DELETE statement is executed.
+The data is deleted directly from the database (Persistence Context is not loaded).
+@Modifying is required because our query is not SELECT.
+@Transactional is still required.
+
+Important difference between the two methods
+First method (deleteByLevel):
+Records are loaded into Persistence Context.
+Deletion is done one by one.
+Lifecycle events (like @PostRemove) are triggered.
+Second method (deleteInBulkByLevel):
+Records are deleted directly from the database.
+Only one DELETE statement is executed.
+No Callback is executed.
+
+Example with Callback
+On User:
+@PostRemove
+public void afterDelete() {
+System.out.println("User with ID " + id + " deleted");
+}
+If we use the first method → a message is printed for each deleted user.
+If we use the second method → no message is printed.
+Reason for choosing each method
+If you need more speed → Method 2 (Bulk).
+If you need to execute Callback or special logic after deletion → Method 1.
+Method 1: Delete level 1 users → three DELETE commands and execute Callback three times.
+Method 2: Delete level 2 users → one DELETE command and no Callback execution.
+
+By default, when you annotate a method with @Query, Spring Data assumes that the query is read-only and returns the result (SELECT).
+When you add @Modifying, you are essentially telling Spring Data:
+"This query is not supposed to return anything, but rather to modify the database (update/delete/insert/ddl)."
+When you use @Modifying, Spring Data can set the method output to the number of records modified
+The bulk operation is performed directly on the database, bypassing the Persistence Context.
+If a record is already loaded into memory (Persistence Context), it will not be synchronized with the database value.
+@Modifying handles this behavior so that after the query is executed, the Context needs to be cleared or synchronized (with clearAutomatically = true).
+@Modifying(clearAutomatically = true)
+@Query("UPDATE User u SET u.isActive = false WHERE u.level = :level")
+int deactivateByLevel(@Param("level") int level);
+
+

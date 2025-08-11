@@ -37,4 +37,10 @@ public class User {
         this.level = level;
         this.isActive = isActive;
     }
+
+    @PostRemove
+    public void foo(){
+        System.out.println("User[id=" + this.id + "] just got deleted");
+    }
+
 }
