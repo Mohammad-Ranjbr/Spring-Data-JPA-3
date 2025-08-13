@@ -754,4 +754,77 @@ The version value of both will be incremented by one (from 0 to 1).
 Bulk queries (@Modifying) modify the data directly in the database → so version is not updated.
 To change the version at the same time as the Bulk Update, you need to use versioned in the JPQL query (Hibernate-specific).
 
+We only want to display the names and salaries (name, salary) of the first three guides with salary > 2000; the user doesn't need to be able to change this data, and the order doesn't matter.
+We can write a Query Method:
+List<Guide> findFirst3BySalaryGreaterThan(Integer minSalary);
+and call the service and print the result. Since we're only reading and not modifying, this should be done inside a read-only transaction:
+@Transactional(readOnly = true)
+public void displayNameAndSalaryOfFirst3Guides() {
+var guides = guideRepository.findFirst3BySalaryGreaterThan(2000);
+for (Guide g : guides) {
+System.out.println(g.getName() + "\t" + g.getSalary());
+}
+}
+
+}
+Why readOnly?
+If the transaction is read-write, JPA/Hibernate creates a snapshot for each entity to check if anything has changed in dirty checking; this consumes RAM/CPU. When we know that the data is read-only, @Transactional(readOnly = true) helps to avoid this overhead.
+Drawbacks of this solution
+With this approach, even though we only need name and salary, JPA loads the entire entity (all columns). This is I/O overhead and degrades performance; especially when the actual entities have a whole bunch of fields.
+Optimal solution: Projections
+Projection means fetching only a subset of the fields of an entity. In Spring Data JPA we have several models; this session focuses on Interface-based Projection.
+1) Closed Projection
+The interface only has getters for the fields in the entity:
+public interface GuideNameSalary {
+String getName();
+Integer getSalary();
+}
+Now we change the return type of the repository method from List<Guide> to List<GuideNameSalary>:
+List<GuideNameSalary> findFirst3BySalaryGreaterThan(Integer minSalary);
+Result:
+At runtime, Spring Data generates proxies of this interface that return only name and salary instead of the real entity, and SELECT only pulls these columns (instead of select g from Guide g ..., something like select g.name, g.salary from Guide g ...)
+Important note: Since the entity is not loaded, entity callbacks like @PostLoad are not executed. Projections are also not managed, so you can rest assured about accidental changes.
+
+2) Adding a calculated value to the Projection (Open Projection)
+You want to return a new value that doesn't exist in the entity; for example, getInfo() that combines name and salary. This can be done with @Value and SpEL:
+public interface GuideNameSalary {
+String getName();
+Integer getSalary();
+
+@Value("#{target.name + '\t' + target.salary}")
+String getInfo();
+}
+Now:
+List<GuideNameSalary> findFirst3BySalaryGreaterThan(Integer minSalary);
+...
+for (GuideNameSalary g : list) {
+System.out.println(g.getInfo());
+}
+Performance warning:
+When using @Value/SpEL, Spring Data may need the entire entity to calculate the expression; so that SELECT optimization is no longer applied and all columns are loaded. This model is called Open Projection.
+3) Overcoming Open Projection performance loss with @Query
+To pull only the necessary columns again, we can write our own Query:
+@Query(
+value = "SELECT g.name AS name, g.salary AS salary " +
+"FROM guide g WHERE g.salary > :minSalary " +
+"ORDER BY g.id LIMIT 3",
+nativeQuery = true
+)
+List<GuideNameSalary> findTop3NameSalary(@Param("minSalary") int minSalary);
+Now even if we have a method like getInfo() in the projection, since we have explicitly selected the necessary columns, Query will pull only those and the entire entity will be prevented from loading.
+Why nativeQuery = true? Because JPQL does not support LIMIT. Of course.
+
+When you use @Value and target, target represents the entire underlying entity (here Guide).
+SpEL can access any field of that entity, whether or not it is defined in the projection.
+For example, if the entity Guide has these fields:
+private String staffId;
+private String name;
+private Integer salary;
+You can even write:
+@Value("#{target.staffId + ' | ' + target.name + '\t' + target.salary}")
+String getInfo();
+Even if you don't define getStaffId() in your projection interface.
+This feature prevents Spring Data from optimizing the SELECT query, because SpEL may access any field of the entity. So Hibernate loads all columns to be sure.
+This means that when you use @Value/SpEL, even if you only write name and salary in the expression, extra columns will still be loaded and performance will decrease.
+
 

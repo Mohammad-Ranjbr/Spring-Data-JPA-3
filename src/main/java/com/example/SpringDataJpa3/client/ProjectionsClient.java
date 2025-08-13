@@ -6,21 +6,21 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
-//@Component
-public class ReadOnlyTransactionClient implements ApplicationRunner {
+@Component
+public class ProjectionsClient implements ApplicationRunner {
 
     private final CollegeManagementService collegeManagementService;
 
-    //@Autowired
-    ReadOnlyTransactionClient(CollegeManagementService collegeManagementService) {
+    @Autowired
+    public ProjectionsClient(CollegeManagementService collegeManagementService) {
         this.collegeManagementService = collegeManagementService;
     }
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
-        collegeManagementService.persistingSomeGuides();
-        //collegeManagementService.fetchingReadWriteGuide();
-        collegeManagementService.fetchingReadOnlyGuide();
+        collegeManagementService.populateDb();
+        collegeManagementService.displayNameAndSalaryOfFirst3GuidesBySalaryGreaterThan2000();
+        collegeManagementService.displayInfoOfFirst3GuidesBySalaryGreaterThan2000();
     }
 
 }

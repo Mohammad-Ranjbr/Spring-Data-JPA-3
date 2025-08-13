@@ -1,12 +1,14 @@
 package com.example.SpringDataJpa3.service;
 
 import com.example.SpringDataJpa3.entity.Guide;
+import com.example.SpringDataJpa3.projection.GuideNameSalary;
 import com.example.SpringDataJpa3.repository.GuideRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -62,5 +64,32 @@ public class CollegeManagementService {
         Guide guide = guideRepository.findById(id).get();
         guide.setSalary(newSalary);
     }
+
+    public void populateDb() {
+        List<Guide> guides = new ArrayList<>();
+        guides.add(new Guide("2000MO10789", "Mike Lawson", 1000));
+        guides.add(new Guide("2008IM10901", "Ian Lamb", 4000));
+        guides.add(new Guide("2012DO10777", "David Crow", 3000));
+        guides.add(new Guide("2020HN10865", "Henry Smith", 2000));
+        guides.add(new Guide("2021DO10499", "Diane Lynn", 3500));
+        guides.add(new Guide("2017ES50489", "Eric Walsh", 2500));
+        guideRepository.saveAll(guides);
+    }
+
+    @Transactional(readOnly = true)
+    public void displayNameAndSalaryOfFirst3GuidesBySalaryGreaterThan2000() {
+        List<GuideNameSalary> proxies = guideRepository.findFirst3BySalaryGreaterThan(2000);
+        for(GuideNameSalary proxy : proxies) {
+            System.out.println("Name: " + proxy.getName() + "\t\t Salary: " + proxy.getSalary());
+        }
+    }
+
+     @Transactional(readOnly = true)
+    public void displayInfoOfFirst3GuidesBySalaryGreaterThan2000() {
+        List<GuideNameSalary> proxies = guideRepository.findFirst3BySalaryGreaterThan(2000);
+        for(GuideNameSalary proxy : proxies) {
+            System.out.println(proxy.getInfo());
+        }
+     }
 
 }

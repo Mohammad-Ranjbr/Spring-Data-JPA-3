@@ -13,12 +13,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Order(1)
-@Component
+//@Component
 public class PopulateDbClient implements ApplicationRunner {
 
     private final GuideRepository guideRepository;
 
-    @Autowired
+    //@Autowired
     public PopulateDbClient(GuideRepository guideRepository) {
         this.guideRepository = guideRepository;
     }
