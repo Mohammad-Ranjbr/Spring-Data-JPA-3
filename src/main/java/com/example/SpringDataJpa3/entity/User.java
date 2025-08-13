@@ -30,6 +30,9 @@ public class User {
     @Column(name = "active")
     private Boolean isActive;
 
+    @Version
+    private Integer version;
+
     public User(String username, LocalDate registrationDate, String email, Integer level, Boolean isActive) {
         this.username = username;
         this.registrationDate = registrationDate;

@@ -673,4 +673,85 @@ If a record is already loaded into memory (Persistence Context), it will not be 
 @Query("UPDATE User u SET u.isActive = false WHERE u.level = :level")
 int deactivateByLevel(@Param("level") int level);
 
+In the service we have a @Transactional method that:
+calls findByIsActive(false) — this is a SELECT and loads the inactive entities into the Persistence Context (e.g. users with id = 3 and 4).
+Then it calls a repository method that performs a bulk delete with @Modifying and a JPQL DELETE ... WHERE u IN :users (a single DELETE statement to the database).
+Question: What will be the result of executing this method?
+When the service method is executed, Spring opens a transaction and a Persistence Context for it (due to @Transactional in the service).
+Executing findByIsActive(false) => a SELECT is sent and the corresponding entities (e.g. id=3 and id=4) are placed in the EntityManager (persistence context) memory.
+Executing the @Modifying method with JPQL DELETE FROM User u WHERE u IN :users => A single DELETE statement is sent to the database, deleting the corresponding rows in the table.
+Note: This statement is executed directly on the database and does not delete or update the entities in the persistence context by default.
+Result: The database has deleted the rows, but the managed versions of the same records still exist in the persistence context — unless the context is explicitly deleted.
+
+1) Lifecycle callbacks (@PostRemove, etc.)
+In bulk operations (JPQL DELETE/UPDATE with @Modifying), no lifecycle callbacks are executed.
+That is, @PostRemove is not executed on the entities because JPA did not delete them via the persistence context — the deletion is done at the database level.
+2) @Modifying has two important attributes: flushAutomatically (default false): If true, all pending changes in the persistence context are flushed before the query is executed (e.g. em.flush()). clearAutomatically (default false): If true, the persistence context is cleared after the query is executed (e.g. em.clear()) to clear managed instances and avoid inconsistencies. 3) The main problem when clearAutomatically=false is that after a bulk delete, the objects are still managed and if you continue to work with them in the same transaction (e.g. change their value), an inconsistency occurs (the database does not have that row but you still have a managed entity in memory). This can cause unexpected behavior or errors later on (e.g. updating arguments, a subsequent flush, or business logic assuming the deleted entity no longer exists). 4) What is the difference between deleteAllInBatch() (from JpaRepository)?
+This method also executes DELETE commands in batch and does not call callbacks (similar to bulk behavior).
+Important difference: The prepared deleteAllInBatch() methods usually do not have the clearAutomatically or flushAutomatically option. This means that after execution, the persistence context is not cleared unless you do it yourself. So there is a risk of stale values unless you call em.clear() yourself.
+
+1) If you want to avoid problems after bulk delete — the easiest way:
+Use @Modifying with clearAutomatically=true and (if needed) flushAutomatically=true in the repository:
+@Modifying(clearAutomatically = true, flushAutomatically = true)
+@Query("DELETE FROM User u WHERE u IN :users")
+int deleteInBulk(@Param("users") List<User> users);
+flushAutomatically=true: any pending changes (that are in the persistence context) are flushed before DELETE is executed.
+clearAutomatically=true: after DELETE is executed, the persistence context is cleared and the "deleted" managed instances are no longer in the context.
+
+2) Manual solution in the service (if the repository does not have this option)
+@Transactional
+public void deleteInactive() {
+List<User> users = userRepository.findByIsActive(false);
+if (users.isEmpty()) return;
+userRepository.deleteInBulk(users); // Assumption: This method performs bulk delete
+entityManager.flush(); // Synchronization (optional if repository does not flush)
+entityManager.clear(); // Clear persistence context to avoid stale entities
+}
+
+3) If you want to not load entities at all before deleting (more efficient and safer)
+Instead of find then deleteInBulk, write a delete method directly based on condition:
+@Modifying(clearAutomatically = true)
+@Query("DELETE FROM User u WHERE u.isActive = false")
+int deleteAllInactiveDirectly();
+
+This method:
+Does not load entities from scratch.
+It only performs a DELETE.
+If you set clearAutomatically=true, the persistence context is cleared.
+4) Be careful with the IN parameter :users
+If the users parameter is an empty list, some JPA providers (or databases) may throw an error (SQL like IN ()). So it is better to check before calling the method if (users.isEmpty()) return 0;.
+
+Pending changes are changes that have been made to entities but have not yet been applied to the database.
+For example, when you change an entity (user.setName("Ali")) or add a new entity (entityManager.persist(user)), these changes are currently only stored in memory (Persistence Context).
+The database is unaware of these changes until one of the following events occurs:
+Flushing (automatic or manual)
+End of transaction and commit
+Execution of a query that requires synchronization of context and database
+
+We want to update the level of all active users whose registration date is before January 1, 2020.
+We have a User entity class that contains the fields id, version, username, registrationDate, level, and isActive.
+The version field is annotated with @Version to enable versioning or optimistic locking.
+We have an UPDATE query in the UserRepository that is annotated with @Modifying.
+This query increments the level of all active users who registered before a specific date by one. The date is passed as a method parameter.
+In the users table, we have 5 users, and only the users with ID=2 and ID=5 meet the above conditions.
+In the foo service method, we call this repository method and pass in the date 2020-01-01.
+The level value of both users (ID 2 and ID 5) is updated to 3, but the version value remains zero and does not change to 1.
+When we directly update the records of an entity in the database, by default the version value does not change.
+The version value is automatically incremented only when we modify the entity through Hibernate and inside the Persistence Context.
+But here, since we are using @Modifying, a Bulk Update is performed which changes the records directly in the database and does not enter them into the Persistence Context. So Hibernate is not aware of this change and does not update the version.
+In fact, the generated query only changes the level column and does not touch the version.
+To solve the problem, we need to use the versioned keyword in the JPQL query (a Hibernate-specific feature).
+This will automatically increment the version column by one when we do a Bulk Update.
+@Modifying
+@Query("update User u set u.level = u.level + 1 where u.isActive = true and u.registrationDate < :date")
+We modify it like this:
+@Modifying
+@Query("update versioned User u set u.level = u.level + 1 where u.isActive = true and u.registrationDate < :date")
+By re-executing the foo method:
+The level value of both users (ID 2 and ID 5) will be incremented by one.
+The version value of both will be incremented by one (from 0 to 1).
+@Version only works when the entity is loaded into the Persistence Context and modified via Hibernate.
+Bulk queries (@Modifying) modify the data directly in the database → so version is not updated.
+To change the version at the same time as the Bulk Update, you need to use versioned in the JPQL query (Hibernate-specific).
+
 

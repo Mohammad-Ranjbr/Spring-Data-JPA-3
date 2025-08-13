@@ -72,4 +72,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("delete from User u where u.level = :level")
     Integer deleteInBulkLevel(Integer level);
 
+    @Transactional
+    @Modifying
+    @Query("update versioned User u set u.level = u.level + 1 where u.registrationDate < ?1 and u.isActive = true")
+    Integer updateInBulkLevel(LocalDate registrationDate);
+
 }

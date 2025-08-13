@@ -49,4 +49,10 @@ public class UserService {
         System.out.println(countOfDeletedUsersInBulk);
     }
 
+    @Transactional
+    public void foo() {
+        int updatedUsers = userRepository.updateInBulkLevel(LocalDate.of(2020, Month.JANUARY, 1));
+        System.out.println(updatedUsers);
+    }
+
 }
